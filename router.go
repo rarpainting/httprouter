@@ -77,6 +77,7 @@
 package httprouter
 
 import (
+	//"fmt"
 	"net/http"
 )
 
@@ -110,6 +111,9 @@ func (ps Params) ByName(name string) string {
 // Router is a http.Handler which can be used to dispatch requests to different
 // handler functions via configurable routes
 type Router struct {
+
+	middleware []MiddlewareFunc
+
 	trees map[string]*node
 
 	// Enables automatic redirection if the current route can't be matched but a
@@ -331,8 +335,10 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if root := r.trees[req.Method]; root != nil {
 		if handle, ps, tsr := root.getValue(path); handle != nil {
+			for _, mwf := range r.middleware {
+				handle = mwf(handle)
+			}
 			handle(w, req, ps)
-			return
 		} else if req.Method != "CONNECT" && path != "/" {
 			code := 301 // Permanent redirect, request with GET method
 			if req.Method != "GET" {
